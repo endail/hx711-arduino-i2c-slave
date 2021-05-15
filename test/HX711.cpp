@@ -35,7 +35,6 @@ bool HX711::_readBit() const {
 
     //first, clock pin is set high to make DOUT ready to be read from
     *out |= this->_clockPinBitmask;
-    //digitalWrite(this->_clockPin, HIGH);
 
     //then delay for sufficient time to allow DOUT to be ready (0.1us)
     //this will also permit a sufficient amount of time for the clock
@@ -44,17 +43,10 @@ bool HX711::_readBit() const {
     
     //at this stage, DOUT is ready and the clock pin has been held
     //high for sufficient amount of time, so read the bit value
-    //volatile uint8_t* in = portInputRegister(this->_dataPort);
     const bool bit = (*portInputRegister(this->_dataPort) & this->_dataPinBitmask) == this->_dataPinBitmask;
-    //const bool bit = *portInputRegister(digitalPinToPort(this->_dataPin)) & digitalPinToBitMask(this->_dataPin);
-    //const bool bit = digitalRead(this->_dataPin) == HIGH;
-    //const bool bit = (*portInputRegister(digitalPinToPort(this->_dataPin)) & digitalPinToBitMask(this->_dataPin)) == digitalPinToBitMask(this->_dataPin);
-    //Serial.println(*portInputRegister(this->_dataPort), BIN);
 
     //the clock pin then needs to be held for at least 0.2us before
     //the next bit can be read
-    //bitClear(*portOutputRegister(digitalPinToPort(this->_clockPin)), digitalPinToBitMask(this->_clockPin));
-    //digitalWrite(this->_clockPin, LOW);
     *out &= ~this->_clockPinBitmask;
     ::delayMicroseconds(1);
 

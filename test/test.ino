@@ -26,7 +26,7 @@ void setup() {
 
 	attachPinChangeInterrupt(
 		digitalPinToPinChangeInterrupt(HX_DAT_PIN),
-		onPinRising,
+		onPinFalling,
 		FALLING);
 
 }
