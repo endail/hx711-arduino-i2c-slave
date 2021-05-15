@@ -1,0 +1,6 @@
+{
+    "board": "arduino:avr:uno",
+    "sketch": "slave\\slave.ino",
+    "port": "COM3",
+    "programmer": "ATTinyCore:avrispmkii"
+}
