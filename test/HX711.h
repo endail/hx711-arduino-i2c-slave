@@ -56,20 +56,20 @@ enum class Gain {
     GAIN_64 = 2
 };
 
-/**
- * Used as a map to select to correct number of clock pulses
- * depending on the set gain
- * Datasheet pg. 4
- */
-const uint8_t PULSES[3] = {
-    25,
-    26,
-    27
-};
-
 class HX711 {
 
 protected:
+
+    /**
+     * Used as a map to select to correct number of clock pulses
+     * depending on the set gain
+     * Datasheet pg. 4
+     */
+    const uint8_t _PULSES[3] = {
+        25,
+        26,
+        27
+    };
 
     //Datasheet pg. 5
     //HX711 is a 24-bit ADC (ie. 3 8-bit values = 24 bits)

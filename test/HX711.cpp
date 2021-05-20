@@ -97,7 +97,7 @@ void HX711::_readRawBytes(uint8_t* bytes) const {
      * additional pulse is needed.
      */
     const uint8_t pulsesNeeded = 
-        PULSES[static_cast<uint8_t>(this->_gain)] -
+        _PULSES[static_cast<uint8_t>(this->_gain)] -
             8 * _BYTES_PER_CONVERSION_PERIOD;
 
     for(uint8_t i = 0; i < pulsesNeeded; ++i) {
