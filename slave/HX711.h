@@ -55,29 +55,32 @@ enum class Gain {
     GAIN_64 = 2
 };
 
-/**
- * Used as a map to select to correct number of clock pulses
- * depending on the set gain
- * Datasheet pg. 4
- */
-const uint8_t PULSES[3] = {
-    25,
-    26,
-    27
-};
-
 class HX711 {
 
 protected:
+
+    /**
+     * Used as a map to select to correct number of clock pulses
+     * depending on the set gain
+     * Datasheet pg. 4
+     */
+    const uint8_t _PULSES[3] = {
+        25,
+        26,
+        27
+    };
 
     //Datasheet pg. 5
     //HX711 is a 24-bit ADC (ie. 3 8-bit values = 24 bits)
     static const uint8_t _BYTES_PER_CONVERSION_PERIOD = 3;
 
-	const uint8_t _dataPort;
-	const uint8_t _clockPort;
-    const uint8_t _dataPinBitmask;
-    const uint8_t _clockPinBitmask;
+    volatile uint8_t* _clockPort;
+    volatile uint8_t* _clockDdr;
+    const uint8_t _clockPin;
+
+    volatile uint8_t* _dataPort;
+    volatile uint8_t* _dataDdr;
+    const uint8_t _dataPin;
 
     Gain _gain = Gain::GAIN_128;
     Format _bitFormat = Format::MSB;
@@ -86,8 +89,8 @@ protected:
     static int32_t _convertFromTwosComplement(const int32_t val);
     bool _readBit() const;
     uint8_t _readByte() const;
-    void _readRawBytes(uint8_t* bytes = nullptr);
-    HX_VALUE _readInt();
+    void _readRawBytes(uint8_t* bytes = nullptr) const;
+    HX_VALUE _readInt() const;
 
     HX_VALUE _getChannelAValue();
     HX_VALUE _getChannelBValue();
@@ -95,18 +98,21 @@ protected:
 public:
     
     HX711(
-		const uint8_t dataPin,
-		const uint8_t clockPin);
+		volatile uint8_t* clockPort,
+        volatile uint8_t* clockDdr,
+        const uint8_t clockPin,
+        volatile uint8_t* dataPort,
+        volatile uint8_t* dataDdr,
+        const uint8_t dataPin);
 
     virtual ~HX711() = default;
 
-	void begin() const;
-
+	void begin();
     void setGain(const Gain gain);
     Gain getGain() const;
-    bool isReady();
+    bool isReady() const;
     HX_VALUE getValue(const Channel c = Channel::A);
-    void powerDown();
+    void powerDown() const;
     void powerUp();
 
 };

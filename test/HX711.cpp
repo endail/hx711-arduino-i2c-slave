@@ -21,8 +21,9 @@
 // SOFTWARE.
 
 #include "HX711.h"
-#include <string.h>
 #include <avr/io.h>
+#include <avr/sfr_defs.h>
+#include <string.h>
 #include <util/delay.h>
 
 namespace HX711 {
@@ -149,7 +150,7 @@ HX_VALUE HX711::_readInt() const {
      * An int (int32_t) is 32 bits (4 bytes), but
      * the HX711 only uses 24 bits (3 bytes).
      */
-    const int32_t twosComp = (  (static_cast<int32_t>(      0 ) << 24) |
+    const int32_t twosComp = (  (                   INT32_C(0)  << 24) |
                                 (static_cast<int32_t>(bytes[0]) << 16) |
                                 (static_cast<int32_t>(bytes[1]) << 8)  |
                                  static_cast<int32_t>(bytes[2])         );

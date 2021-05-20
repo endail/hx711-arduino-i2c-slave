@@ -24,7 +24,6 @@
 #define HX711_HX711_H_670BFDCD_DA15_4F8B_A15C_0F0043905889
 
 #include <stdint.h>
-#include <avr/io.h>
 
 namespace HX711 {
 
