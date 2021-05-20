@@ -24,6 +24,7 @@
 #define HX711_HX711_H_670BFDCD_DA15_4F8B_A15C_0F0043905889
 
 #include <stdint.h>
+#include <avr/io.h>
 
 namespace HX711 {
 
@@ -74,10 +75,13 @@ protected:
     //HX711 is a 24-bit ADC (ie. 3 8-bit values = 24 bits)
     static const uint8_t _BYTES_PER_CONVERSION_PERIOD = 3;
 
-    const uint8_t _clockPort;
-    const uint8_t _clockPinBitmask;
-    const uint8_t _dataPort;
-    const uint8_t _dataPinBitmask;
+    volatile uint8_t* _clockPort;
+    volatile uint8_t* _clockDdr;
+    const uint8_t _clockPin;
+
+    volatile uint8_t* _dataPort;
+    volatile uint8_t* _dataDdr;
+    const uint8_t _dataPin;
 
     Gain _gain = Gain::GAIN_128;
     Format _bitFormat = Format::MSB;
@@ -95,7 +99,11 @@ protected:
 public:
     
     HX711(
-		const uint8_t clockPin,
+		volatile uint8_t* clockPort,
+        volatile uint8_t* clockDdr,
+        const uint8_t clockPin,
+        volatile uint8_t* dataPort,
+        volatile uint8_t* dataDdr,
         const uint8_t dataPin);
 
     virtual ~HX711() = default;

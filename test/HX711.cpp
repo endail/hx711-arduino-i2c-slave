@@ -21,7 +21,9 @@
 // SOFTWARE.
 
 #include "HX711.h"
-#include <Arduino.h>
+#include <string.h>
+#include <avr/io.h>
+#include <util/delay.h>
 
 namespace HX711 {
 
@@ -31,24 +33,22 @@ int32_t HX711::_convertFromTwosComplement(const int32_t val) {
 
 bool HX711::_readBit() const {
 
-    volatile uint8_t* out = portOutputRegister(this->_clockPort);
-
     //first, clock pin is set high to make DOUT ready to be read from
-    *out |= this->_clockPinBitmask;
+    *this->_clockPort |= (1 << this->_clockPin);
 
     //then delay for sufficient time to allow DOUT to be ready (0.1us)
     //this will also permit a sufficient amount of time for the clock
-    //oin to remain high
-    ::delayMicroseconds(1);
+    //pin to remain high
+    ::_delay_us(1);
     
     //at this stage, DOUT is ready and the clock pin has been held
     //high for sufficient amount of time, so read the bit value
-    const bool bit = (*portInputRegister(this->_dataPort) & this->_dataPinBitmask) == this->_dataPinBitmask;
+    const bool bit = bit_is_set(*this->_dataPort, this->_dataPin) != 0;
 
     //the clock pin then needs to be held for at least 0.2us before
     //the next bit can be read
-    *out &= ~this->_clockPinBitmask;
-    ::delayMicroseconds(1);
+    *this->_clockPort &= ~(1 << this->_clockPin);
+    ::_delay_us(1);
 
     return bit;
 
@@ -127,32 +127,21 @@ void HX711::_readRawBytes(uint8_t* bytes) const {
     }
 
     //finally, copy the local raw bytes to the byte array
-    for(uint8_t i = 0; i < _BYTES_PER_CONVERSION_PERIOD; ++i) {
-        bytes[i] = raw[i];
-    }
+    ::memcpy(bytes, raw, _BYTES_PER_CONVERSION_PERIOD);
 
 }
 
 HX_VALUE HX711::_readInt() const {
 
     uint8_t bytes[_BYTES_PER_CONVERSION_PERIOD];
-    
-    /**
-     * Bytes are ready to be read from the HX711 when DOUT goes low.
-     * Datasheet pg. 5
-     * 
-     * The - potential- issue is that DOUT going low does not appear to be
-     * defined. It appears to occur whenever it is ready, whenever that is.
-     */
-    while(!this->isReady());
-    
+
     /**
      * When DOUT goes low, there is a minimum of 0.1us until the clock pin
      * can go high. T1 in Fig.2.
      * Datasheet pg. 5
      * 0.1us == 100ns
      */
-    ::delayMicroseconds(1);
+    ::_delay_us(1);
 
     this->_readRawBytes(bytes);
 
@@ -201,25 +190,24 @@ HX_VALUE HX711::_getChannelBValue() {
 }
 
 HX711::HX711(
+    volatile uint8_t* clockPort,
+    volatile uint8_t* clockDdr,
     const uint8_t clockPin,
+    volatile uint8_t* dataPort,
+    volatile uint8_t* dataDdr,
     const uint8_t dataPin)
-        :   _clockPort(digitalPinToPort(clockPin)),
-            _clockPinBitmask(digitalPinToBitMask(clockPin)),
-            _dataPort(digitalPinToPort(dataPin)),
-            _dataPinBitmask(digitalPinToBitMask(dataPin)) {
+        :   _clockPort(clockPort),
+            _clockDdr(clockDdr),
+            _clockPin(clockPin),
+            _dataPort(dataPort),
+            _dataDdr(dataDdr),
+            _dataPin(dataPin) {
 }
 
 void HX711::begin() {
 
-    volatile uint8_t* reg;
-    
-    //set data port+pin to input
-    reg = portModeRegister(this->_dataPort);
-    *reg &= ~this->_dataPinBitmask;
-
-    //set clock port+pin to output
-    reg = portModeRegister(this->_clockPort);
-    *reg |= this->_clockPinBitmask;
+    *this->_clockDdr |= (1 << this->_clockPin);
+    *this->_dataDdr &= ~(1 << this->_dataPin);
 
     this->powerUp();
 
@@ -236,10 +224,15 @@ bool HX711::isReady() const {
      * or looping for checking if the sensor is ready
      * over time can/should be done by other calling code
      */
-    return (*portInputRegister(this->_dataPort) & this->_dataPinBitmask) != this->_dataPinBitmask;
+    return bit_is_set(*this->_dataPort, this->_dataPin) == 0;
 
 }
 
+/**
+ * Important! This does not check whether DOUT is low!
+ * Calling code must do this itself! ie.
+ * while(!hx.isReady());
+ */
 HX_VALUE HX711::getValue(const Channel c) {
 
     if(c == Channel::A) {
@@ -260,6 +253,10 @@ void HX711::setGain(const Gain gain) {
      * hardware level. See datasheet pg. 4 "Serial
      * Interface".
      */
+    while(!this->isReady()) {
+        ::_delay_us(1);
+    }
+
     this->_readRawBytes();
 
 }
@@ -275,13 +272,12 @@ void HX711::powerDown() const {
      * and stays at high for longer than 60µs, HX711
      * enters power down mode (Fig.3)."
      * Datasheet pg. 5
-     */    
-    volatile uint8_t* out = portOutputRegister(this->_clockPort);
+     */
+    *this->_clockPort &= ~(1 << this->_clockPin);
+    loop_until_bit_is_clear(*this->_clockPort, this->_clockPin);
+    *this->_clockPort |= (1 << this->_clockPin);
 
-    *out &= ~this->_clockPinBitmask;
-    *out |= this->_clockPinBitmask;
-
-    ::delayMicroseconds(60);
+    ::_delay_us(60);
 
 }
 
@@ -292,7 +288,7 @@ void HX711::powerUp() {
      * chip will reset and enter normal operation mode"
      * Datasheet pg. 5
      */
-    *portOutputRegister(this->_clockPort) &= ~this->_clockPinBitmask;
+    *this->_clockPort &= ~(1 << this->_clockPin);
 
     /**
      * "After a reset or power-down event, input

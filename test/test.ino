@@ -1,20 +1,31 @@
-
 #include "HX711.h"
 #include "PinChangeInterrupt.h"
 
-#define HX_CLK_PIN 3 //arduino pin
-#define HX_DAT_PIN 4 //arduino pin
+#define CLOCK_PORT PORTD
+#define CLOCK_DDR DDRD
+#define CLOCK_PIN PORTD3
 
-int32_t sensorReading = 0;
+#define DATA_PORT PIND
+#define DATA_DDR DDRD
+#define DATA_PIN PIND4
+
+//PCINT20, see https://github.com/NicoHood/PinChangeInterrupt/#pinchangeinterrupt-table
+#define DATA_INT 20
+
+HX711::HX_VALUE sensorReading;
 volatile bool shouldUpdateSensor = false;
 unsigned long previousMillis = 0;
-const long interval = 1000;
 
-HX711::HX711 hx(HX_CLK_PIN, HX_DAT_PIN);
+HX711::HX711 hx(
+	&CLOCK_PORT,
+	&CLOCK_DDR,
+	CLOCK_PIN,
+	&DATA_PORT,
+	&DATA_DDR,
+	DATA_PIN);
 
 void onPinFalling() {
-	disablePinChangeInterrupt(
-		digitalPinToPinChangeInterrupt(HX_DAT_PIN));
+	disablePinChangeInterrupt(DATA_INT);
 	shouldUpdateSensor = true;
 }
 
@@ -22,12 +33,13 @@ void setup() {
 
 	while(!Serial);
 	Serial.begin(115200);
-	hx.begin();
 
 	attachPinChangeInterrupt(
-		digitalPinToPinChangeInterrupt(HX_DAT_PIN),
+		DATA_INT,
 		onPinFalling,
 		FALLING);
+
+	hx.begin();
 
 }
 
@@ -36,13 +48,12 @@ void loop() {
 	if(shouldUpdateSensor) {
 		sensorReading = hx.getValue();
 		shouldUpdateSensor = false;
-		enablePinChangeInterrupt(
-			digitalPinToPinChangeInterrupt(HX_DAT_PIN));
+		enablePinChangeInterrupt(DATA_INT);
 	}
 
 	unsigned long currentMillis = millis();
 
-	if(currentMillis - previousMillis >= interval) {
+	if(currentMillis - previousMillis >= 1000) {
 		previousMillis = currentMillis;
 		Serial.println(sensorReading);
 	}
