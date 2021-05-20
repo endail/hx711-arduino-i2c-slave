@@ -1,121 +1,79 @@
 
-#include <Arduino.h>
-#include "TinyWireS.h"
+/**
+ * http://homemadehardware.com/img/attiny85_pinout.jpeg
+ * 
+ * 
+ * 
+ */
+
+#include <avr/io.h>
 #include "HX711.h"
-#include <avr/sleep.h>
-#include <avr/wdt.h>
+#include "TinyWireS.h"
+#include "PinChangeInterrupt.h"
 
-#define I2C_SLAVE_ADDR 0x13
+#define CLOCK_PORT PORTB
+#define CLOCK_DDR DDRB
+#define CLOCK_PIN PORTB3
 
-//These are Arduino pins!
-#define I2C_CLK_PIN 2 //not directly used
-#define I2C_DAT_PIN 0 //not directly used
-#define HX_CLK_PIN 3
-#define HX_DAT_PIN 4 //this is the external interrupt pin INT0!
+#define DATA_PORT PINB
+#define DATA_DDR DDRB
+#define DATA_PIN PINB4
+#define DATA_INT 4
 
-//HX711's 3 bytes
-int32_t sensorReading = 0;
-volatile bool updating = false;
-volatile bool waitingForLow = true;
+#define I2C_SLAVE_ADDR 0x6E
 
-HX711::HX711 hx(HX_CLK_PIN, HX_DAT_PIN);
 
-inline uint8_t readPin() {
-	return bitRead(*(volatile uint8_t*)PINB, digitalPinToBitMask(HX_DAT_PIN));
-}
+HX711::HX_VALUE sensorReading;
+volatile bool shouldUpdateSensor = false;
 
-//bytes:
-//0 - command
-//1 - data
-//... - data
-//n - data
+HX711::HX711 hx(
+	&CLOCK_PORT,
+	&CLOCK_DDR,
+	CLOCK_PIN,
+	&DATA_PORT,
+	&DATA_DDR,
+	DATA_PIN);
 
-/*
-void receiveEvent(uint8_t count) {
-
-	//no bytes available
-	if(!TinyWireS.available() || count > 2) {
-		return;
-	}
-
-	const uint8_t cmd = TinyWireS.receive();
-	const uint8_t dat = count == 2 ? TinyWireS.receive() : 0;
-
-	//set gain
-	if(cmd == 1) {
-		//dat[0] == 0 = 128
-		//dat[0] == 1 = 64
-		//dat[1] == 2 = 32
-	}
-
-}
-*/
 
 void requestEvent() {
 
-	updating = true;
-
-	int32_t val = hx.getValue();
+	const HX711::HX_VALUE val = sensorReading;
 
 	//attiny is little-endian
 	//so send the little bytes first
 	TinyWireS.send((val >> (8 * 2)) & 0xff);
 	TinyWireS.send((val >> (8 * 1)) & 0xff);
 	TinyWireS.send((val >> (8 * 0)) & 0xff);
-	
-	updating = false;
 
+}
+
+void onPinFalling() {
+	disablePinChangeInterrupt(DATA_INT);
+	shouldUpdateSensor = true;
 }
 
 void setup() {
 
-	TinyWireS.begin(I2C_SLAVE_ADDR);
-	//TinyWireS.onReceive(receiveEvent);
-	TinyWireS.onRequest(requestEvent);
+	attachPinChangeInterrupt(
+		DATA_INT,
+		onPinFalling,
+		FALLING);
 
 	hx.begin();
 
-	bitSet(GIMSK, ISC01);
-	bitClear(GIMSK, ISC00);
+	TinyWireS.begin(I2C_SLAVE_ADDR);
+	TinyWireS.onRequest(requestEvent);
 
 }
 
 void loop() {
-	TinyWireS_stop_check();
-}
 
-
-ISR(PCINT0_vect) {
-
-	return;
-
-	if(updating) {
-		return;
-	}
-
-	updating = true;
-
-	const uint8_t currentState = readPin();
-
-	//pin has now gone high
-	//waiting for it to go low
-	if(!waitingForLow && currentState == 1) {
-		waitingForLow = true;
-		updating = false;
-		return;
-	}
-	
-	//found a falling edge
-	//update the sensor
-	//re-enable interrupts
-	if(waitingForLow && currentState == 0) {
+	if(shouldUpdateSensor) {
 		sensorReading = hx.getValue();
-		waitingForLow = false;
-		updating = false;
-		return;
+		shouldUpdateSensor = false;
+		enablePinChangeInterrupt(DATA_INT);
 	}
 
-	updating = false;
-	return;
+	TinyWireS_stop_check();
 
 }
