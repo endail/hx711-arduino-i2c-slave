@@ -1,3 +1,10 @@
+
+/**
+ * Handy references
+ * https://mansfield-devine.com/speculatrix/2017/04/avr-basics-reading-and-writing-gpio-pins/
+ * https://github.com/NicoHood/PinChangeInterrupt
+ */
+
 #include "HX711.h"
 #include "PinChangeInterrupt.h"
 
@@ -8,9 +15,8 @@
 #define DATA_PORT PIND
 #define DATA_DDR DDRD
 #define DATA_PIN PIND4
-
-//PCINT20, see https://github.com/NicoHood/PinChangeInterrupt/#pinchangeinterrupt-table
 #define DATA_INT 20
+
 
 HX711::HX_VALUE sensorReading;
 volatile bool shouldUpdateSensor = false;
