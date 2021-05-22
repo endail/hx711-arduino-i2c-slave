@@ -100,14 +100,14 @@ void setup() {
     CLOCK_DDR |= (1 << CLOCK_PIN);
     DATA_DDR &= ~(1 << DATA_PIN);
 
+    hx.begin();
+
+    processCommand(DEFAULT_CMD);
+
     attachPinChangeInterrupt(
         DATA_INT,
         onPinFalling,
         FALLING);
-
-    hx.begin();
-
-    processCommand(DEFAULT_CMD);
 
     TinyWireS.onReceive(onI2CReceive);
     TinyWireS.onRequest(onI2CRequest);
@@ -200,16 +200,23 @@ void processCommand(const uint8_t cmd) {
     }
 
     transmitType = static_cast<I2C_TX_TYPE>(txType);
-    hx.setGain(static_cast<HX711::Gain>(gain));
     ch = static_cast<HX711::Channel>(channel);
     hx.setBitFormat(static_cast<HX711::Format>(bitF));
     hx.setByteFormat(static_cast<HX711::Format>(byteF));
-    
+
     if(pwr) {
+        //if power on requested, set the gain AFTER powering on
         hx.powerUp();
+        hx.setGain(static_cast<HX711::Gain>(gain));
     }
     else {
+        
+        //if power down requested, set the gain BEFORE powering down
+        //this is probably useless, because the gain will reset after
+        //powering back on
+        hx.setGain(static_cast<HX711::Gain>(gain));
         hx.powerDown();
+
     }
 
 }
