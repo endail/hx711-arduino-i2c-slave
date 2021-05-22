@@ -212,6 +212,5 @@ void processCommand(const uint8_t cmd) {
         hx.powerDown();
     }
 
-
 }
 
