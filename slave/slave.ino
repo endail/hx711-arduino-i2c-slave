@@ -183,13 +183,13 @@ void transmitReading() {
 
 void processCommand(const uint8_t cmd) {
 
-    const uint8_t txType =      (cmd >> 0) & 0b0000001;
-    const uint8_t gain =        (cmd >> 1) & 0b0000011;
-    const uint8_t channel =     (cmd >> 3) & 0b0000001;
-    const uint8_t bitF =        (cmd >> 4) & 0b0000001;
-    const uint8_t byteF =       (cmd >> 5) & 0b0000001;
-    const uint8_t pwr =         (cmd >> 6) & 0b0000001;
-    const uint8_t oneShot =     (cmd >> 7) & 0b0000001;
+    const uint8_t txType =      (cmd >> 0) & 0x1;
+    const uint8_t gain =        (cmd >> 1) & 0x2;
+    const uint8_t channel =     (cmd >> 3) & 0x1;
+    const uint8_t bitF =        (cmd >> 4) & 0x1;
+    const uint8_t byteF =       (cmd >> 5) & 0x1;
+    const uint8_t pwr =         (cmd >> 6) & 0x1;
+    const uint8_t oneShot =     (cmd >> 7) & 0x1;
 
     shouldSendReading = static_cast<bool>(oneShot);
 
