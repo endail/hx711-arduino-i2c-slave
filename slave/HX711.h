@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2020 Daniel Robertson
+// Copyright (c) 2021 Daniel Robertson
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,8 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef HX711_HX711_H_670BFDCD_DA15_4F8B_A15C_0F0043905889
-#define HX711_HX711_H_670BFDCD_DA15_4F8B_A15C_0F0043905889
+#ifndef HX711_HX711_H_E90FC36E_BABC_455B_8936_69964EB52238
+#define HX711_HX711_H_E90FC36E_BABC_455B_8936_69964EB52238
 
 #include <stdint.h>
 
@@ -75,11 +75,9 @@ protected:
     static const uint8_t _BYTES_PER_CONVERSION_PERIOD = 3;
 
     volatile uint8_t* _clockPort;
-    volatile uint8_t* _clockDdr;
     const uint8_t _clockPin;
 
     volatile uint8_t* _dataPort;
-    volatile uint8_t* _dataDdr;
     const uint8_t _dataPin;
 
     Gain _gain = Gain::GAIN_128;
@@ -99,10 +97,8 @@ public:
     
     HX711(
 		volatile uint8_t* clockPort,
-        volatile uint8_t* clockDdr,
         const uint8_t clockPin,
         volatile uint8_t* dataPort,
-        volatile uint8_t* dataDdr,
         const uint8_t dataPin);
 
     virtual ~HX711() = default;
@@ -112,6 +108,12 @@ public:
     Gain getGain() const;
     bool isReady() const;
     HX_VALUE getValue(const Channel c = Channel::A);
+
+    Format getBitFormat() const;
+    Format getByteFormat() const;
+    void setBitFormat(const Format f);
+    void setByteFormat(const Format f);
+
     void powerDown() const;
     void powerUp();
 

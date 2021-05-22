@@ -150,10 +150,10 @@ HX_VALUE HX711::_readInt() const {
      * An int (int32_t) is 32 bits (4 bytes), but
      * the HX711 only uses 24 bits (3 bytes).
      */
-    const int32_t twosComp = (  (                   INT32_C(0)  << 24) |
-                                (static_cast<int32_t>(bytes[0]) << 16) |
-                                (static_cast<int32_t>(bytes[1]) << 8)  |
-                                 static_cast<int32_t>(bytes[2])         );
+    const int32_t twosComp = ((                   INT32_C(0)  << 24) |
+                              (static_cast<int32_t>(bytes[0]) << 16) |
+                              (static_cast<int32_t>(bytes[1]) << 8)  |
+                               static_cast<int32_t>(bytes[2])         );
 
     return _convertFromTwosComplement(twosComp);
 
@@ -192,26 +192,17 @@ HX_VALUE HX711::_getChannelBValue() {
 
 HX711::HX711(
     volatile uint8_t* clockPort,
-    volatile uint8_t* clockDdr,
     const uint8_t clockPin,
     volatile uint8_t* dataPort,
-    volatile uint8_t* dataDdr,
     const uint8_t dataPin)
         :   _clockPort(clockPort),
-            _clockDdr(clockDdr),
             _clockPin(clockPin),
             _dataPort(dataPort),
-            _dataDdr(dataDdr),
             _dataPin(dataPin) {
 }
 
 void HX711::begin() {
-
-    *this->_clockDdr |= (1 << this->_clockPin);
-    *this->_dataDdr &= ~(1 << this->_dataPin);
-
     this->powerUp();
-
 }
 
 bool HX711::isReady() const {
@@ -243,6 +234,22 @@ HX_VALUE HX711::getValue(const Channel c) {
     //else channel B
     return this->_getChannelBValue();
 
+}
+
+Format HX711::getBitFormat() const {
+    return this->_bitFormat;
+}
+
+Format HX711::getByteFormat() const {
+    return this->_byteFormat;
+}
+
+void HX711::setBitFormat(const Format f) {
+    this->_bitFormat = f;
+}
+
+void HX711::setByteFormat(const Format f) {
+    this->_byteFormat = f;
 }
 
 void HX711::setGain(const Gain gain) {
