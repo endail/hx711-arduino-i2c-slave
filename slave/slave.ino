@@ -44,8 +44,8 @@
  * reading.
  */
 
-#include <avr/atomic.h>
 #include <avr/io.h>
+#include <util/atomic.h>
 #include "HX711.h"
 #include "PinChangeInterrupt.h"
 #include "TinyWireS.h"
@@ -60,9 +60,9 @@
 #define DATA_INT 4
 
 #define I2C_SLAVE_ADDR 0x6E
-#define DEFAULT_CMD 0b01000001;
+#define DEFAULT_CMD 0b01000001
 #ifndef TWI_RX_BUFFER_SIZE
-#define TWI_RX_BUFFER_SIZE(16)
+#define TWI_RX_BUFFER_SIZE (16)
 #endif
 
 void onI2CRequest();

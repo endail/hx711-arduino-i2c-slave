@@ -18,8 +18,8 @@
             "includePath": [
                 "C:\\Users\\drob\\AppData\\Local\\Arduino15\\packages\\ATTinyCore\\hardware\\avr\\1.5.2\\cores\\tiny",
                 "C:\\Users\\drob\\AppData\\Local\\Arduino15\\packages\\ATTinyCore\\hardware\\avr\\1.5.2\\variants\\tinyX5",
-                "H:\\Daniel\\My Documents\\Arduino\\libraries\\TinyWireS",
                 "H:\\Daniel\\My Documents\\Arduino\\libraries\\PinChangeInterrupt\\src",
+                "H:\\Daniel\\My Documents\\Arduino\\libraries\\TinyWireS",
                 "c:\\users\\drob\\appdata\\local\\arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino7\\lib\\gcc\\avr\\7.3.0\\include",
                 "c:\\users\\drob\\appdata\\local\\arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino7\\lib\\gcc\\avr\\7.3.0\\include-fixed",
                 "c:\\users\\drob\\appdata\\local\\arduino15\\packages\\arduino\\tools\\avr-gcc\\7.3.0-atmel3.6.1-arduino7\\avr\\include"
