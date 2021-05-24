@@ -21,27 +21,83 @@
 // SOFTWARE.
 
 /**
- * Uses the following libs:
+ * Sketch uses the following libraries. Install these first:
  * https://github.com/rambo/TinyWire
  * https://github.com/NicoHood/PinChangeInterrupt
  * 
- * Derivitive of my own HX711 code
- * https://github.com/endail/hx711
- * 
- * 
- * Helpful links
- * http://homemadehardware.com/img/attiny85_pinout.jpeg
+ * A derivative of my own HX711 library, which is already
+ * included alongside this sketch.
  * 
  * 
  * Function of this sketch:
  * 
- * 1. HX711's DOUT pin falls LOW when data is ready to be
- * retrieved. The pinchangeinterrupt lib watches for this
- * on the data pin and updates the sensorReading var
- * accordingly.
+ * 1. When the HX711's DOUT/DATA pin goes low, it indicates
+ * data is ready to be retrieved from the HX711. This sketch
+ * defines an interrupt for when this occurs. When interrupted,
+ * a flag in the main loop will cause the data to be retrieved
+ * and a copy of the HX711's reading will be stored.
  * 
- * 2. To respond to I2C requests for most recent HX711
- * reading.
+ * 2. This sketch also operates an I2C master. It will respond
+ * to requests by sending the number of milliseconds between
+ * sending the response and when data was retrieved from the
+ * HX711 to a maximum of UINT16_MAX. This is approximately
+ * 65 seconds. An I2C slave can check this value to see how
+ * old the HX711's reading is.
+ * 
+ * The I2C response is comprised of 5 bytes. The first two
+ * bytes contain the timestamp described above as an unsigned
+ * 16 bit integer. The last three bytes contain the HX711
+ * reading value as a signed 24 bit integer.
+ * 
+ * 3. Various settings can be set with an I2C write operation
+ * transmitted as one byte. The single byte contains various
+ * bits to indicate settings. They are described below, with
+ * bit numbers being 0-based (ie. the most significant bit is
+ * bit 7, and least significant bit is bit 0).
+ * 
+ * Bits 6-7:
+ *      not used
+ * 
+ * Bit 5: HX711 power setting
+ *      0: power off the sensor
+ *      1: power on the sensor (default)
+ * 
+ * Bit 4: HX711 byte format
+ *      0: indicates HX711 is outputting bytes in MSB format (default)
+ *      1: indicates HX711 is outputting bytes in LSB format
+ * 
+ * Bit 3: HX711 bit format
+ *      0: indicates HX711 is outputting bits in MSB format (default)
+ *      1: indicates HX711 is outputting bits in LSB format
+ * 
+ * Bit 2: HX711 channel
+ *      0: read from channel A (default)
+ *      1: read from channel B
+ * 
+ * Bits 0-1: HX711 gain
+ *      0: set gain to 128 (default)
+ *      1: set gain to 32
+ *      2: set gain to 64
+ * 
+ * 
+ * Notes:
+ * 
+ * 1. This sketch hardcodes the following important values:
+ *      I2C slave address: 0x6e
+ *      I2C clock pin connected to PB2 (Arduino pin 2)
+ *      I2C data pin connected to PB0 (Arduino pin 0)
+ *      HX711's clock pin connected to PB3 (Arduino pin 3)
+ *      HX711's data pin connected to PB4 (Arduino pin 4)
+ * 
+ * 2. The ATtiny's external interrupt pin (INT0) is used by
+ * the TinyWireS library. This is why the interrupt defined
+ * in this sketch is attached to PCINT4.
+ * 
+ * The following pinout may be useful to identify the relevant
+ * pins: http://homemadehardware.com/img/attiny85_pinout.jpeg
+ * 
+ * 3. This sketch SHOULD work on other AVR MCUs without too much
+ * modification.
  */
 
 #include <avr/io.h>
@@ -59,8 +115,8 @@
 #define DATA_PIN PINB4
 #define DATA_INT 4
 
-#define I2C_SLAVE_ADDR 0x6E
-#define DEFAULT_CMD 0b01000001
+#define I2C_SLAVE_ADDR 0x6e
+#define DEFAULT_CMD 0b00100000
 #ifndef TWI_RX_BUFFER_SIZE
 #define TWI_RX_BUFFER_SIZE (16)
 #endif
@@ -73,17 +129,9 @@ void processCommand(const uint8_t cmd);
 void setup();
 void loop();
 
-enum class I2C_TX_TYPE {
-    ONCE = 0,
-    STREAM
-};
-
-//settings
 HX711::Channel ch = HX711::Channel::A;
-I2C_TX_TYPE transmitType = I2C_TX_TYPE::STREAM;
-
-//i2c stuff
 HX711::HX_VALUE sensorReading = 0;
+unsigned long whenLastRead = 0; //milliseconds
 volatile bool shouldSendReading = false;
 volatile bool shouldUpdateSensor = false;
 
@@ -118,15 +166,11 @@ void setup() {
 void loop() {
 
     if(shouldUpdateSensor) {
-
+        //at this stage, interrupt is inactive
         sensorReading = hx.getValue(ch);
+        whenLastRead = ::millis();
         shouldUpdateSensor = false;
         enablePinChangeInterrupt(DATA_INT);
-
-        if(transmitType == I2C_TX_TYPE::STREAM) {
-            transmitReading();
-        }
-
     }
 
     if(shouldSendReading) {
@@ -139,21 +183,13 @@ void loop() {
 }
 
 void onI2CRequest() {
-    transmitReading();
+    shouldSendReading = true;
 }
 
 void onI2CReceive(uint8_t howMany) {
 
-    if(!TinyWireS.available()) {
-        return;
-    }
-
-    if(howMany > TWI_RX_BUFFER_SIZE) {
-        return;
-    }
-
-    //only 1 byte is needed
-    if(howMany != 1) {
+    //only one byte needed
+    if(!TinyWireS.available() || howMany != 1) {
         return;
     }
 
@@ -172,34 +208,46 @@ void onPinFalling() {
 
 void transmitReading() {
 
-    //make a copy
-    const HX711::HX_VALUE val = sensorReading;
+    HX711::HX_VALUE val;
+    unsigned long nowMillis;
 
-    TinyWireS.send((val >> 16) & 0xff);
-    TinyWireS.send((val >> 8)  & 0xff);
-    TinyWireS.send( val        & 0xff);
+    //make a copy and then process
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        val = sensorReading;
+        nowMillis = ::millis();
+    }
+
+    const unsigned long longDiff = static_cast<unsigned long>(
+        nowMillis - whenLastRead
+    );
+
+    const uint16_t diff = min(UINT16_MAX, longDiff);
+
+    //send time diff
+    TinyWireS.send(static_cast<uint8_t>((diff >> 8) & 0xff));
+    TinyWireS.send(static_cast<uint8_t>( diff       & 0xff));
+
+    //send hx reading
+    TinyWireS.send(static_cast<uint8_t>((val >> 16) & 0xff));
+    TinyWireS.send(static_cast<uint8_t>((val >> 8)  & 0xff));
+    TinyWireS.send(static_cast<uint8_t>( val        & 0xff));
 
 }
 
 void processCommand(const uint8_t cmd) {
 
-    const uint8_t txType =      (cmd >> 0) & 0x1;
-    const uint8_t gain =        (cmd >> 1) & 0x2;
-    const uint8_t channel =     (cmd >> 3) & 0x1;
-    const uint8_t bitF =        (cmd >> 4) & 0x1;
-    const uint8_t byteF =       (cmd >> 5) & 0x1;
-    const uint8_t pwr =         (cmd >> 6) & 0x1;
-    const uint8_t oneShot =     (cmd >> 7) & 0x1;
+    uint8_t gain =              (cmd >> 0) & 0b00000011;
+    const uint8_t channel =     (cmd >> 2) & 0b00000001;
+    const uint8_t bitF =        (cmd >> 3) & 0b00000001;
+    const uint8_t byteF =       (cmd >> 4) & 0b00000001;
+    const uint8_t pwr =         (cmd >> 5) & 0b00000001;
 
-    shouldSendReading = static_cast<bool>(oneShot);
-
-    //if a one-shot reading is requested,
-    //no longer process command
-    if(shouldSendReading) {
-        return;
+    //gain only has 3 selectable values, from 0 to 2
+    //if the value from the slave is 3, default to 0
+    if(gain == 3) {
+        gain = 0;
     }
 
-    transmitType = static_cast<I2C_TX_TYPE>(txType);
     ch = static_cast<HX711::Channel>(channel);
     hx.setBitFormat(static_cast<HX711::Format>(bitF));
     hx.setByteFormat(static_cast<HX711::Format>(byteF));
@@ -220,4 +268,3 @@ void processCommand(const uint8_t cmd) {
     }
 
 }
-
