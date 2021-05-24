@@ -463,4 +463,3 @@ FodyWeavers.xsd
 *.tlog
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,windows,linux,visualstudio,c++
-.vscode/c_cpp_properties.json
