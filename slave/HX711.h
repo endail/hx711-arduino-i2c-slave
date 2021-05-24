@@ -96,14 +96,14 @@ protected:
 public:
     
     HX711(
-		volatile uint8_t* clockPort,
+        volatile uint8_t* clockPort,
         const uint8_t clockPin,
         volatile uint8_t* dataPort,
         const uint8_t dataPin);
 
     virtual ~HX711() = default;
 
-	void begin();
+    void begin();
     void setGain(const Gain gain);
     Gain getGain() const;
     bool isReady() const;
