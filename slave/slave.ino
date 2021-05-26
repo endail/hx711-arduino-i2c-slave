@@ -117,9 +117,6 @@
 
 #define I2C_SLAVE_ADDR 0x6e
 #define DEFAULT_CMD 0b00100000
-#ifndef TWI_RX_BUFFER_SIZE
-#define TWI_RX_BUFFER_SIZE (16)
-#endif
 
 void onI2CRequest();
 void onI2CReceive(uint8_t howMany);
