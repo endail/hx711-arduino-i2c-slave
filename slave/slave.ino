@@ -166,11 +166,23 @@ void setup() {
 void loop() {
 
     if(shouldUpdateSensor) {
-        //at this stage, interrupt is inactive
-        sensorReading = hx.getValue(ch);
-        whenLastRead = ::millis();
+
+        //at this stage, data pinchange interrupt is inactive
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+            //even though the data pin pinchange interrupt
+            //is disabled at this point, it is still
+            //possible another interrupt could occur, particularly
+            //in dealing with the I2C interface which uses the INT0
+            //external interrupt. Further, whenLastRead should
+            //really be as close as possible to when the sensor
+            //reading was obtained
+            sensorReading = hx.getValue(ch);
+            whenLastRead = ::millis();
+        }
+        
         shouldUpdateSensor = false;
         enablePinChangeInterrupt(DATA_INT);
+
     }
 
     if(shouldSendReading) {
